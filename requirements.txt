@@ -1,0 +1,10 @@
+diffusers>=0.30
+transformers
+accelerate
+peft
+gradio>=4.44
+rembg
+onnxruntime
+pillow
+numpy
+pytest
