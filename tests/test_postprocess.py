@@ -73,3 +73,15 @@ def test_seamless_survives_to_grid():
     periodic = tile_preview(base).resize((3072, 3072), Image.NEAREST).crop((1024, 1024, 2048, 2048))
     small = to_grid(periodic, 32)  # BOX 1024->32: each 32x32 block maps back to one source cell
     assert np.array_equal(np.array(small), np.array(base))
+
+
+def test_quantize_ignores_transparent_pixels():
+    img = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    for i, c in enumerate([(255, 0, 0), (0, 255, 0), (255, 255, 0), (0, 0, 255)]):
+        img.putpixel((i, 0), c + (255,))
+    assert len(opaque_colors(quantize(img, 4))) == 4
+
+
+def test_prepare_input_composites_alpha_on_white():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    assert prepare_input(img).getpixel((0, 0)) == (255, 255, 255)

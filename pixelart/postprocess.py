@@ -1,4 +1,5 @@
 """Turn AI-generated images into real pixel art. Pure PIL, CPU only."""
+import numpy as np
 from PIL import Image
 
 PICO8 = [
@@ -19,7 +20,8 @@ def _scaled(size, long_side):
 
 def prepare_input(img, long_side=1024):
     w, h = _scaled(img.size, long_side)
-    return img.convert("RGB").resize((max(8, round(w / 8) * 8), max(8, round(h / 8) * 8)), Image.LANCZOS)
+    flat = Image.alpha_composite(Image.new("RGBA", img.size, "white"), img.convert("RGBA")).convert("RGB")
+    return flat.resize((max(8, round(w / 8) * 8), max(8, round(h / 8) * 8)), Image.LANCZOS)
 
 
 def remove_background(img):
@@ -41,16 +43,26 @@ def quantize(img, colors=16, palette=None):
     alpha = rgba.getchannel("A").point(lambda a: 255 if a >= 128 else 0)
     rgb = rgba.convert("RGB")
     if palette == "pico8":
-        pal = Image.new("P", (1, 1))
-        flat = [c for rgb_ in PICO8 for c in rgb_]
-        pal.putpalette(flat + flat[:3] * (256 - len(PICO8)))
-        q = rgb.quantize(palette=pal, dither=Image.Dither.NONE)
+        chosen = PICO8
     else:
-        q = rgb.quantize(colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        opaque = np.array(rgb)[np.array(alpha) > 0]  # transparent pixels must not take palette slots
+        src = Image.fromarray(opaque[None]) if len(opaque) else rgb
+        q = src.quantize(colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        used = sorted(i for _, i in q.getcolors())
+        pal = q.getpalette()
+        chosen = [tuple(pal[3 * i:3 * i + 3]) for i in used]
+    q = rgb.quantize(palette=_palette_image(chosen), dither=Image.Dither.NONE)
     out = q.convert("RGB").convert("RGBA")
     out.putalpha(alpha)
     clear = Image.new("RGBA", out.size, (0, 0, 0, 0))
     return Image.composite(out, clear, alpha)
+
+
+def _palette_image(colors):
+    flat = [c for rgb in colors for c in rgb]
+    pal = Image.new("P", (1, 1))
+    pal.putpalette(flat + flat[:3] * (256 - len(colors)))  # pad with a real colour, never stray black
+    return pal
 
 
 def upscale_preview(img, size=512):

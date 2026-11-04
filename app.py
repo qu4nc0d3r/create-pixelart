@@ -51,7 +51,7 @@ def convert(image, prompt, strength, size, palette_mode, colors, remove_bg, n, s
     if image is None:
         raise gr.Error("Hãy tải ảnh lên")
     if strength == 0:
-        images, seed = [postprocess.prepare_input(image)], 0  # pixelate only, no model
+        images, seed = [image.convert("RGBA")], 0  # pixelate only, no model; keep transparency
     else:
         images, seed = _call(generate.img2img, image, (prompt or "").strip(), float(strength), int(n), seed)
     sprites, paths = _finish(images, size, palette_mode, colors, remove_bg)
@@ -103,10 +103,10 @@ def build_ui():
             remove_bg = gr.Checkbox(value=True, label="Xóa nền")
             n, seed = _variants_and_seed()
             btn = gr.Button("Tạo", variant="primary")
-            btn.click(sprite, [prompt, size, palette, colors, remove_bg, n, seed], _outputs())
+            btn.click(sprite, [prompt, size, palette, colors, remove_bg, n, seed], _outputs(), concurrency_id="gpu")
 
         with gr.Tab("Ảnh → Pixel art"):
-            image = gr.Image(type="pil", label="Ảnh gốc")
+            image = gr.Image(type="pil", image_mode=None, label="Ảnh gốc")
             prompt = gr.Textbox(label="Mô tả (tùy chọn)")
             strength = gr.Slider(0, 0.8, value=0.5, step=0.05, label="Độ biến đổi (0 = chỉ pixel hóa)")
             size = gr.Radio([16, 32, 64, 128], value=32, label="Kích thước cạnh dài (px)")
@@ -114,7 +114,7 @@ def build_ui():
             remove_bg = gr.Checkbox(value=False, label="Xóa nền")
             n, seed = _variants_and_seed()
             btn = gr.Button("Tạo", variant="primary")
-            btn.click(convert, [image, prompt, strength, size, palette, colors, remove_bg, n, seed], _outputs())
+            btn.click(convert, [image, prompt, strength, size, palette, colors, remove_bg, n, seed], _outputs(), concurrency_id="gpu")
 
         with gr.Tab("Tile liền mạch"):
             prompt = gr.Textbox(label="Mô tả", placeholder="grass with small flowers")
@@ -122,7 +122,7 @@ def build_ui():
             palette, colors = _palette_controls()
             n, seed = _variants_and_seed()
             btn = gr.Button("Tạo", variant="primary")
-            btn.click(make_tile, [prompt, size, palette, colors, n, seed], _outputs())
+            btn.click(make_tile, [prompt, size, palette, colors, n, seed], _outputs(), concurrency_id="gpu")
     return demo
 
 

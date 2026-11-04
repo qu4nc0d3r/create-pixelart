@@ -1,8 +1,8 @@
-diffusers>=0.30
-transformers
+diffusers~=0.42.1
+transformers~=5.22
 accelerate
-peft
-gradio>=4.44
+peft~=0.21
+gradio~=6.31.0
 rembg
 onnxruntime
 pillow

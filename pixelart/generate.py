@@ -46,6 +46,7 @@ def load():
         BASE, vae=vae, torch_dtype=torch.float16, variant="fp16"
     ).to("cuda")
     pipe.load_lora_weights(LORA)
+    pipe.vae.enable_slicing()  # decode one image at a time; n=4 at 1024² would OOM a T4
     _txt2img = pipe
     _img2img = AutoPipelineForImage2Image.from_pipe(pipe)  # shares weights, no extra VRAM
 

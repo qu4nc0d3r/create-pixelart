@@ -71,3 +71,33 @@ def test_auth_ok(monkeypatch):
 
 def test_build_ui():
     assert isinstance(app.build_ui(), gr.Blocks)
+
+
+def test_all_tabs_share_one_gpu_queue():
+    ids = {fn.concurrency_id for fn in app.build_ui().fns.values()}
+    assert len(ids) == 1
+
+
+def test_convert_strength_zero_keeps_transparency():
+    img = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+    img.putpixel((0, 0), (255, 0, 0, 255))
+    _, paths, _ = app.convert(img, "", 0, 32, "Tự động", 16, False, 1, None)
+    assert Image.open(paths[0]).getpixel((5, 5))[3] == 0
+
+
+def test_load_enables_vae_slicing(monkeypatch):
+    import sys, types
+    from unittest import mock
+    pipe = mock.MagicMock()
+    fake = types.SimpleNamespace(
+        AutoencoderKL=mock.MagicMock(),
+        StableDiffusionXLPipeline=mock.MagicMock(**{"from_pretrained.return_value.to.return_value": pipe}),
+        AutoPipelineForImage2Image=mock.MagicMock(),
+    )
+    monkeypatch.setitem(sys.modules, "diffusers", fake)
+    monkeypatch.setattr(app.generate, "_txt2img", None)
+    monkeypatch.setattr(app.generate, "_img2img", None)
+    import importlib
+    gen = importlib.import_module("pixelart.generate")
+    gen.load()
+    pipe.vae.enable_slicing.assert_called_once()
